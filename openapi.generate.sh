@@ -1,1 +1,1 @@
-oapi-codegen -config openapi.client.yaml https://raw.githubusercontent.com/ctrlplanedev/ctrlplane/refs/heads/main/openapi.v1.json
+oapi-codegen -config openapi.client.yaml https://raw.githubusercontent.com/j7m4/ctrlplane/refs/heads/list-rsc-depl-sys/openapi.v1.json

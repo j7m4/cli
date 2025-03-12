@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
+	"github.com/ctrlplanedev/cli/internal/api"
+	"github.com/spf13/viper"
 )
 
 type replCtx struct {
@@ -219,4 +221,13 @@ func StartLoop() error {
 		}
 	}
 	return nil
+}
+
+func callApi() {
+	apiURL := viper.GetString("url")
+	apiKey := viper.GetString("api-key")
+	client, err := api.NewAPIKeyClientWithResponses(apiURL, apiKey)
+	if err != nil {
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
 }
