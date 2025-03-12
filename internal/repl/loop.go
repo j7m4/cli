@@ -25,32 +25,49 @@ func newContext() *replCtx {
 }
 
 type Ctx interface {
-	clear()
+	clearFilters()
+	showFilters()
 	buildPrompt() string
 	listSystemSlugs() func(string) []string
 	listDeploymentSlugs() func(string) []string
 	listEnvironmentSlugs() func(string) []string
 }
 
-func (rc *replCtx) clear() {
+func (rc *replCtx) clearFilters() {
 	rc.systemsFilter = make([]string, 0)
 	rc.deploymentsFilter = make([]string, 0)
 	rc.environmentsFilter = make([]string, 0)
 }
 
-func (rc *replCtx) show() {
-	fmt.Printf("Systems: %v\n", rc.systemsFilter)
-	fmt.Printf("Deployments: %v\n", rc.deploymentsFilter)
-	fmt.Printf("Environments: %v\n", rc.environmentsFilter)
+func (rc *replCtx) showFilters() {
+	var display string
+	if len(rc.systemsFilter) > 0 {
+		display += fmt.Sprintf("systems: %v\n", strings.Join(rc.systemsFilter, ", "))
+	}
+	if len(rc.deploymentsFilter) > 0 {
+		display += fmt.Sprintf("deployments: %v\n", strings.Join(rc.deploymentsFilter, ", "))
+	}
+	if len(rc.environmentsFilter) > 0 {
+		display += fmt.Sprintf("environments: %v\n", strings.Join(rc.environmentsFilter, ", "))
+	}
+	fmt.Print(display)
 }
 
 func (rc *replCtx) buildPrompt() string {
-	return fmt.Sprintf(
-		"s[%d] d[%d] e[%d] \033[31m»\033[0m ",
-		len(rc.systemsFilter),
-		len(rc.deploymentsFilter),
-		len(rc.environmentsFilter),
-	)
+	var filterSummary = ""
+	if len(rc.systemsFilter) > 0 {
+		filterSummary += fmt.Sprintf("s{%d}", len(rc.systemsFilter))
+	}
+	if len(rc.deploymentsFilter) > 0 {
+		filterSummary += fmt.Sprintf("d{%d}", len(rc.deploymentsFilter))
+	}
+	if len(rc.environmentsFilter) > 0 {
+		filterSummary += fmt.Sprintf("e{%d}", len(rc.environmentsFilter))
+	}
+	if filterSummary != "" {
+		filterSummary = fmt.Sprintf("F[%s]", filterSummary)
+	}
+	return fmt.Sprintf("\033[31m%s»\033[0m", filterSummary)
 }
 
 func (rc *replCtx) listSystemSlugs() func(string) []string {
@@ -103,6 +120,7 @@ func buildCompleter(ctx Ctx) *readline.PrefixCompleter {
 			readline.PcItem("environment",
 				readline.PcItemDynamic(ctx.listEnvironmentSlugs())),
 			readline.PcItem("clear"),
+			readline.PcItem("show"),
 		),
 		readline.PcItem("exit"),
 	)
@@ -138,6 +156,7 @@ func StartLoop() error {
 
 	log.SetOutput(l.Stderr())
 	for {
+		//ctx.showFilters()
 		l.SetPrompt(ctx.buildPrompt())
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
@@ -186,9 +205,9 @@ func StartLoop() error {
 				}
 				ctx.environmentsFilter = append(ctx.environmentsFilter, words[2])
 			case "clear":
-				ctx.clear()
+				ctx.clearFilters()
 			case "show":
-				ctx.show()
+				ctx.showFilters()
 			default:
 				log.Println("filter <system|deployment|environment> <name>")
 			}
