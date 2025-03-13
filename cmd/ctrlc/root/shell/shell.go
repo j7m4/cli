@@ -14,7 +14,7 @@ func NewShellCmd() *cobra.Command {
 		Use:   "shell",
 		Short: "Interact with ctrlplane via shell interface.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return repl.StartLoop()
+			return repl.StartLoop(cmd)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			apiURL := viper.GetString("url")

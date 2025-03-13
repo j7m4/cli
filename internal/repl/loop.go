@@ -1,9 +1,14 @@
 package repl
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/spf13/cobra"
 	"io"
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -16,17 +21,128 @@ type replCtx struct {
 	systemsFilter      []string
 	deploymentsFilter  []string
 	environmentsFilter []string
+	systemSlugs        []string
+	deploymentSlugs    []string
+	environmentSlugs   []string
 }
 
-func newContext() *replCtx {
+type pageableResponse struct {
+	data []map[string]interface{}
+}
+
+func newReplContext(ctx context.Context) (*replCtx, error) {
+	var err error
+	var envSlugs []string
+	var sysSlugs []string
+	var deplSlugs []string
+
+	envSlugs, err = listEnvSlugs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	sysSlugs, err = listSysSlugs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	deplSlugs, err = listDeplSlugs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &replCtx{
 		systemsFilter:      make([]string, 0),
 		deploymentsFilter:  make([]string, 0),
 		environmentsFilter: make([]string, 0),
-	}
+		systemSlugs:        sysSlugs,
+		deploymentSlugs:    deplSlugs,
+		environmentSlugs:   envSlugs,
+	}, nil
 }
 
-type Ctx interface {
+func listEnvSlugs(ctx context.Context) ([]string, error) {
+	var err error
+	var response *http.Response
+
+	client, err := buildApiClient()
+	if err != nil {
+		return nil, err
+	}
+	environmentSlugs := make([]string, 0)
+	response, err = client.ListEnvironments(ctx)
+	if err != nil {
+		return environmentSlugs, err
+	}
+	if response.Body == nil {
+		return environmentSlugs, fmt.Errorf("no environmentList response body")
+	}
+	envList := pageableResponse{}
+	err = json.NewDecoder(response.Body).Decode(&envList)
+	if err != nil {
+		return environmentSlugs, err
+	}
+	for _, env := range envList.data {
+		environmentSlugs = append(environmentSlugs, env["slug"].(string))
+	}
+	return environmentSlugs, nil
+}
+
+func listSysSlugs(ctx context.Context) ([]string, error) {
+	var err error
+	var response *http.Response
+
+	client, err := buildApiClient()
+	if err != nil {
+		return nil, err
+	}
+	systemSlugs := make([]string, 0)
+	response, err = client.ListSystems(ctx)
+	if err != nil {
+		return systemSlugs, err
+	}
+	if response.Body == nil {
+		return systemSlugs, fmt.Errorf("no environmentList response body")
+	}
+	envList := pageableResponse{}
+	err = json.NewDecoder(response.Body).Decode(&envList)
+	if err != nil {
+		return systemSlugs, err
+	}
+	for _, env := range envList.data {
+		systemSlugs = append(systemSlugs, env["slug"].(string))
+	}
+	return systemSlugs, nil
+}
+
+func listDeplSlugs(ctx context.Context) ([]string, error) {
+	var err error
+	var response *http.Response
+
+	client, err := buildApiClient()
+	if err != nil {
+		return nil, err
+	}
+	deploymentSlugs := make([]string, 0)
+	response, err = client.ListSystems(ctx)
+	if err != nil {
+		return deploymentSlugs, err
+	}
+	if response.Body == nil {
+		return deploymentSlugs, fmt.Errorf("no environmentList response body")
+	}
+	envList := pageableResponse{}
+	err = json.NewDecoder(response.Body).Decode(&envList)
+	if err != nil {
+		return deploymentSlugs, err
+	}
+	for _, env := range envList.data {
+		deploymentSlugs = append(deploymentSlugs, env["slug"].(string))
+	}
+	return deploymentSlugs, nil
+}
+
+type ReplCtx interface {
 	clearFilters()
 	showFilters()
 	buildPrompt() string
@@ -74,45 +190,23 @@ func (rc *replCtx) buildPrompt() string {
 
 func (rc *replCtx) listSystemSlugs() func(string) []string {
 	return func(line string) []string {
-		names := []string{
-			"cluster-security",
-			"cluster-tooling",
-			"ephemeral-data-services",
-		}
-		return names
+		return rc.systemsFilter
 	}
 }
 
 func (rc *replCtx) listDeploymentSlugs() func(string) []string {
 	return func(line string) []string {
-		names := []string{
-			"teleport-kube-agent",
-			"datadog",
-			"kubernetes-replicator",
-			"cert-manager",
-			"minio",
-			"mysql",
-			"kafka",
-			"google-emulators",
-			"clickhouse",
-			"redis",
-		}
-		return names
+		return rc.deploymentSlugs
 	}
 }
 
 func (rc *replCtx) listEnvironmentSlugs() func(string) []string {
 	return func(line string) []string {
-		names := []string{
-			"ephemeral-instances",
-			"ci",
-			"testing-clusters",
-		}
-		return names
+		return rc.environmentSlugs
 	}
 }
 
-func buildCompleter(ctx Ctx) *readline.PrefixCompleter {
+func buildCompleter(ctx ReplCtx) *readline.PrefixCompleter {
 	return readline.NewPrefixCompleter(
 		readline.PcItem("filter",
 			readline.PcItem("system",
@@ -137,8 +231,13 @@ func filterInput(r rune) (rune, bool) {
 	return r, true
 }
 
-func StartLoop() error {
-	ctx := newContext()
+func StartLoop(cmd *cobra.Command) error {
+	var err error
+
+	ctx, err := newReplContext(cmd.Context())
+	if err != nil {
+		return err
+	}
 
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          "\033[31m»\033[0m ",
@@ -161,7 +260,7 @@ func StartLoop() error {
 		//ctx.showFilters()
 		l.SetPrompt(ctx.buildPrompt())
 		line, err := l.Readline()
-		if err == readline.ErrInterrupt {
+		if errors.Is(err, readline.ErrInterrupt) {
 			if len(line) == 0 {
 				break
 			} else {
@@ -223,11 +322,8 @@ func StartLoop() error {
 	return nil
 }
 
-func callApi() {
+func buildApiClient() (*api.ClientWithResponses, error) {
 	apiURL := viper.GetString("url")
 	apiKey := viper.GetString("api-key")
-	client, err := api.NewAPIKeyClientWithResponses(apiURL, apiKey)
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
-	}
+	return api.NewAPIKeyClientWithResponses(apiURL, apiKey)
 }
