@@ -9,26 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type SteampipeClient struct {
-	ExecCmd string `default:"steampipe"`
-}
-
-func NewSteampipeClient() *SteampipeClient {
-	return &SteampipeClient{}
-}
-
-func (c *SteampipeClient) ListResourceGroups() ([]string, error) {
-	// Simulate fetching resource groups from Steampipe
-	resourceGroups := []string{"group1", "group2", "group3"}
-	return resourceGroups, nil
-}
-
-func (c *SteampipeClient) SendResourcesFromGroup(resourceGroup string) ([]string, error) {
-	// Simulate sending resources from a specific group to Ctrlplane
-	resourceGroups := []string{resourceGroup}
-	return resourceGroups, nil
-}
-
 func NewSyncSteampipeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "steampipe <subcommand>",
@@ -54,14 +34,14 @@ func NewSyncSteampipeListCmd() *cobra.Command {
 
 			client := NewSteampipeClient()
 
-			resourceGroups, err := client.ListResourceGroups()
+			_, err := client.ListResourceGroups()
 			if err != nil {
 				return err
 			}
 
-			for _, group := range resourceGroups {
-				fmt.Println(group)
-			}
+			// for _, group := range resourceGroups {
+			// 	fmt.Println(group)
+			// }
 
 			return nil
 		},
