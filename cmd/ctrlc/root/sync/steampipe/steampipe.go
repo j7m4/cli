@@ -14,8 +14,8 @@ func NewSyncSteampipeCmd() *cobra.Command {
 		Use:   "steampipe <subcommand>",
 		Short: "Subcommands for integrating steampipe with Ctrlplane",
 		Example: heredoc.Doc(`
-			$ ctrlc sync steampipe list                  # Show which resourceGroups are available
-			$ ctrlc sync steampipe send <resourceGroup>  # Send to Ctrlplane the resource info for all resourceGroups
+			$ ctrlc sync steampipe list                         # Show which resource providers are available
+			$ ctrlc sync steampipe send <resource-provider-id>  # Send to Ctrlplane the resource info for all resourceGroups
 		`),
 	}
 
@@ -26,15 +26,22 @@ func NewSyncSteampipeCmd() *cobra.Command {
 }
 
 func NewSyncSteampipeListCmd() *cobra.Command {
+	var spConnection string
+
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List all available resourceGroups",
+		Short: "List all available resource-providers",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			log.Info("Listing all available resourceGroups")
 
-			client := NewSteampipeClient()
+			client, err := NewSteampipeClient(spConnection)
+			if err != nil {
+				log.Error("Failed to create Steampipe client", "error", err)
+				return err
+			}
+			defer client.Close()
 
-			_, err := client.ListResourceGroups()
+			_, err = client.ListResourceGroups()
 			if err != nil {
 				return err
 			}
@@ -47,11 +54,15 @@ func NewSyncSteampipeListCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVarP(&spConnection, "steampipe-connection", "c", "", "The steampipe postgresql connection string to use")
+	cmd.MarkFlagRequired("steampipe-connection")
+
 	return cmd
 }
 
 func NewSyncSteampipeSendCmd() *cobra.Command {
 	var resourceGroup string
+	var spConnection string
 
 	cmd := &cobra.Command{
 		Use:   "send",
@@ -63,9 +74,14 @@ func NewSyncSteampipeSendCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log.Info("Send all available resources")
+			log.Info("Sending resource groups to Ctrlplane")
 
-			client := NewSteampipeClient()
+			client, err := NewSteampipeClient(spConnection)
+			if err != nil {
+				log.Error("Failed to create Steampipe client", "error", err)
+				return err
+			}
+			defer client.Close()
 
 			resourceGroups, err := client.SendResourcesFromGroup(resourceGroup)
 			if err != nil {
@@ -81,8 +97,10 @@ func NewSyncSteampipeSendCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&resourceGroup, "resource-group", "r", os.Getenv("STEAMPIPE_RESOURCE_GROUP"), "The resource group name")
+	cmd.Flags().StringVarP(&spConnection, "steampipe-connection", "c", "", "The steampipe postgresql connection string to use")
 
 	cmd.MarkFlagRequired("resource-group")
+	cmd.MarkFlagRequired("steampipe-connection")
 
 	return cmd
 }
