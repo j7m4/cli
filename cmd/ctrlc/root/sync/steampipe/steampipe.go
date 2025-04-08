@@ -15,8 +15,8 @@ import (
 
 func NewSyncSteampipeCmd() *cobra.Command {
 	var providerName string
-	var spConnection string
-	var spTable string
+	var connection string
+	var table string
 
 	apiURL := viper.GetString("url")
 	apiKey := viper.GetString("api-key")
@@ -32,30 +32,33 @@ func NewSyncSteampipeCmd() *cobra.Command {
 			var err error
 			var provider *api.ResourceProvider
 			var providerResp *http.Response
+			var resources []api.AgentResource
 
 			ctx := context.Background()
 
-			spClient, err := NewSteampipeClient(spConnection)
+			steampipe, err := NewSteampipeClient(connection)
 			if err != nil {
-				return fmt.Errorf("Failed to create Steampipe Connection: %w", err)
+				return fmt.Errorf("failed to create steampipe connection: %w", err)
+			}
+			defer func(steampipe *SteampipeClient) {
+				err := steampipe.Close()
+				if err != nil {
+					log.Errorf("failed to close steampipe connection: %v", err)
+				}
+			}(steampipe)
+
+			apiClient, err := api.NewAPIKeyClientWithResponses(apiURL, apiKey)
+			if err != nil {
+				return fmt.Errorf("failed to create API client: %w", err)
 			}
 
-			cpClient, err := api.NewAPIKeyClientWithResponses(apiURL, apiKey)
-
-			if err != nil {
-				return fmt.Errorf("failed to create API spClient: %w", err)
-			}
-
-			defer spClient.Close()
-
-			resources, err := spClient.Fetch(spTable)
-			if err != nil {
+			if resources, err = steampipe.Fetch(table); err != nil {
 				return err
 			}
 
 			log.Infof("Resource count  %d", len(resources))
 			if len(resources) > 0 {
-				provider, err = api.NewResourceProvider(cpClient, workspaceId, providerName)
+				provider, err = api.NewResourceProvider(apiClient, workspaceId, providerName)
 				if err != nil {
 					return fmt.Errorf("failed to create resource provider: %w", err)
 				}
@@ -73,8 +76,8 @@ func NewSyncSteampipeCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&providerName, "resource-provider-name", "r", os.Getenv("RESOURCE_PROVIDER"), "The resource group name")
-	cmd.Flags().StringVarP(&spConnection, "steampipe-connection", "c", os.Getenv("STEAMPIPE_CONNECTION"), "The steampipe postgresql connection string to use")
-	cmd.Flags().StringVarP(&spTable, "steampipe-table", "t", os.Getenv("STEAMPIPE_TABLE"), "The steampipe postgresql table to select from")
+	cmd.Flags().StringVarP(&connection, "steampipe-connection", "c", os.Getenv("STEAMPIPE_CONNECTION"), "The steampipe postgresql connection string to use")
+	cmd.Flags().StringVarP(&table, "steampipe-table", "t", os.Getenv("STEAMPIPE_TABLE"), "The steampipe postgresql table to select from")
 
 	cmd.MarkFlagRequired("resource-provider-name")
 	cmd.MarkFlagRequired("steampipe-connection")

@@ -1,32 +1,32 @@
 package adapter
 
 var kubernetesComponents = []SteampipeAdapter{
-	{
-		ConnectionType: "kubernetes",
-		ResourceType:   "namespace",
-	},
-	{
-		ConnectionType: "kubernetes",
-		ResourceType:   "pod",
-	},
-	{
-		ConnectionType: "kubernetes",
-		ResourceType:   "node",
-	},
-	{
-		ConnectionType: "kubernetes",
-		ResourceType:   "service",
-	},
-	{
-		ConnectionType: "kubernetes",
-		ResourceType:   "deployment",
-	},
-	{
-		ConnectionType: "kubernetes",
-		ResourceType:   "job",
-	},
-	{
-		ConnectionType: "kubernetes",
-		ResourceType:   "cronjob",
-	},
+	//{
+	//	Plugin:       "kubernetes",
+	//	ResourceType: "namespace",
+	//},
+	//{
+	//	Plugin:       "kubernetes",
+	//	ResourceType: "pod",
+	//},
+	//{
+	//	Plugin:       "kubernetes",
+	//	ResourceType: "node",
+	//},
+	//{
+	//	Plugin:       "kubernetes",
+	//	ResourceType: "service",
+	//},
+	//{
+	//	Plugin:       "kubernetes",
+	//	ResourceType: "deployment",
+	//},
+	//{
+	//	Plugin:       "kubernetes",
+	//	ResourceType: "job",
+	//},
+	//{
+	//	Plugin:       "kubernetes",
+	//	ResourceType: "cronjob",
+	//},
 }

@@ -1,52 +1,61 @@
 package adapter
 
+import "github.com/ctrlplanedev/cli/internal/api"
+
 var awsAdapters = []SteampipeAdapter{
 	{
-		ConnectionType: "aws",
-		/*
-			IsType: func(resourceType string) bool {
-				return resourceType == "eks_cluster"
-			},
-			Convert func(res) ResourceObj {
-				return ResourceObj{
-					Name : fooo,
-					Version: "kubernetes/v1",
-					Kind: "ClusterApi",
-					Config: map[string]interface{}{
-						"auth": map[string]interface{} {
-							method: "aws/eks",
-							region: "us-east-1",
-							cluster: "default",
-							accountId: "123456789012",
-						},
-						status: "active",
-						name: "default",
-					},
-					Identifier: "my-arn",
-					Metadata: map[string]interface{}{
-						"bunch": "of",
-						"misc": "stuff",
-						"not": "excludeed",
-					},
+		Table: "aws_eks_cluster",
+		Translate: func(data *map[string]interface{}) (api.AgentResource, bool) {
+			var ok bool
+			var resource api.AgentResource
+			var tags map[string]string
 
-			},
-		*/
-		ResourceType: "eks_cluster",
+			resource = api.AgentResource{
+				Config:   make(map[string]interface{}),
+				Metadata: make(map[string]string),
+			}
+
+			if resource.Identifier, ok = getValue[string](data, []string{"arn"}); !ok {
+				return resource, false
+			}
+
+			if resource.Name, ok = getValue[string](data, []string{"name"}); !ok {
+				return resource, false
+			}
+
+			if tags, ok = getValue[map[string]string](data, []string{"tags"}); ok {
+				for key, value := range tags {
+					resource.Metadata[key] = value
+				}
+			} else {
+				return resource, false
+			}
+
+			if resource.Version, ok = getValue[string](data, []string{"version"}); !ok {
+				return resource, false
+			}
+
+			if resource.Kind, ok = getValue[string](data, []string{"kind"}); !ok {
+				return resource, false
+			}
+
+			return resource, true
+		},
 	},
-	{
-		ConnectionType: "aws",
-		ResourceType:   "vpc",
-	},
-	{
-		ConnectionType: "aws",
-		ResourceType:   "rds_db_cluster",
-	},
-	{
-		ConnectionType: "aws",
-		ResourceType:   "rds_db_instance",
-	},
-	{
-		ConnectionType: "aws",
-		ResourceType:   "elasticache_cluster",
-	},
+	//{
+	//	Plugin:       "aws",
+	//	ResourceType: "vpc",
+	//},
+	//{
+	//	Plugin:       "aws",
+	//	ResourceType: "rds_db_cluster",
+	//},
+	//{
+	//	Plugin:       "aws",
+	//	ResourceType: "rds_db_instance",
+	//},
+	//{
+	//	Plugin:       "aws",
+	//	ResourceType: "elasticache_cluster",
+	//},
 }

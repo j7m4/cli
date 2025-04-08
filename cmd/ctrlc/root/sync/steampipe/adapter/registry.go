@@ -1,25 +1,35 @@
 package adapter
 
-func buildRegistry() []SteampipeAdapter {
-	components := []SteampipeAdapter{}
-	components = append(components, kubernetesComponents...)
-	components = append(components, awsAdapters...)
-	components = append(components, gcpComponents...)
-	components = append(components, azureComponents...)
-	return components
-}
+import (
+	"strings"
+)
 
-func buildTableNameRegistry() map[string]SteampipeAdapter {
-	tableNameRegistry := make(map[string]SteampipeAdapter)
-	for _, component := range buildRegistry() {
-		tableNameRegistry[component.TableName()] = component
+func buildRegistry() map[string]*SteampipeAdapter {
+	registry := make(map[string]*SteampipeAdapter)
+	for _, pluginAdapters := range [][]SteampipeAdapter{kubernetesComponents, awsAdapters, gcpComponents, azureComponents} {
+		for _, adapter := range pluginAdapters {
+			registry[adapter.Table] = &adapter
+		}
 	}
-	return tableNameRegistry
+	return registry
 }
 
-var tableNameRegistry = buildTableNameRegistry()
+var registry = buildRegistry()
 
-func GetAccessInfo(tableName string) (SteampipeAdapter, bool) {
-	accessInfo, ok := tableNameRegistry[tableName]
-	return accessInfo, ok
+func SelectAdapter(table string) *SteampipeAdapter {
+	var adapter *SteampipeAdapter
+	var ok bool
+	tableName := stripSchema(table)
+
+	if adapter, ok = registry[tableName]; !ok {
+		return nil
+	}
+	return adapter
+}
+
+func stripSchema(table string) string {
+	if strings.Contains(table, ".") {
+		return strings.Split(table, ".")[1]
+	}
+	return table
 }
