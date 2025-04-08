@@ -1,6 +1,6 @@
-package registry
+package adapter
 
-var awsComponents = []SteampipeAccessInfo{
+var awsAdapters = []SteampipeAdapter{
 	{
 		ConnectionType: "aws",
 		/*

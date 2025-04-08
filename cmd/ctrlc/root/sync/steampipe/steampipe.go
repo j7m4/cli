@@ -13,26 +13,82 @@ import (
 )
 
 func NewSyncSteampipeCmd() *cobra.Command {
+	var resourceProvider string
+	var spConnection string
+	var spTable string
+
 	apiURL := viper.GetString("url")
 	apiKey := viper.GetString("api-key")
 	workspaceId := viper.GetString("workspace")
 
-	ctrlplaneClient, err := api.NewAPIKeyClientWithResponses(apiURL, apiKey)
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
-	}
-
 	cmd := &cobra.Command{
-		Use:   "steampipe <subcommand>",
+		Use:   "steampipe",
 		Short: "Subcommands for integrating steampipe with Ctrlplane",
 		Example: heredoc.Doc(`
-			$ ctrlc sync steampipe list                         # Show which resource providers are available
-			$ ctrlc sync steampipe send <resource-provider-id>  # Send to Ctrlplane the resource info for all resourceGroups
+			$ ctrlc sync steampipe -r resource-provider -c steampipe-connection -t steampipe-table
 		`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			spClient, err := NewSteampipeClient(spConnection)
+			if err != nil {
+				log.Error("Failed to create Steampipe spClient", "error", err)
+				return err
+			}
+
+			cpClient, err := api.NewAPIKeyClientWithResponses(apiURL, apiKey)
+			if err != nil {
+				return fmt.Errorf("failed to create API spClient: %w", err)
+				return err
+			}
+
+			defer spClient.Close()
+
+			connections, err := spClient.Fetch()
+			if err != nil {
+				return err
+			}
+
+			// Create a new table writer
+			table := tablewriter.NewWriter(os.Stdout)
+
+			// Set headers
+			table.SetHeader([]string{"Resource ID", "Resource Type", "Connection Name", "Steampipe Table"})
+
+			// Add rows
+			for _, conn := range connections {
+				table.Append([]string{
+					conn.CtrlPlaneResource.Id,
+					conn.CtrlPlaneResource.Type,
+					conn.Name,
+					conn.SteampipeResource.TableName,
+				})
+			}
+
+			// Set table properties
+			table.SetAutoWrapText(false)
+			table.SetAutoFormatHeaders(true)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.SetCenterSeparator("")
+			table.SetColumnSeparator("|")
+			table.SetRowSeparator("")
+			table.SetBorder(true)
+			table.SetTablePadding("\t")
+			table.SetNoWhiteSpace(true)
+
+			// Render the table
+			table.Render()
+
+			return nil
+		},
 	}
 
-	cmd.AddCommand(NewSyncSteampipeListCmd())
-	cmd.AddCommand(NewSyncSteampipeSendCmd())
+	cmd.Flags().StringVarP(&resourceProvider, "resource-provider", "r", os.Getenv("RESOURCE_PROVIDER"), "The resource group name")
+	cmd.Flags().StringVarP(&spConnection, "steampipe-connection", "c", os.Getenv("STEAMPIPE_CONNECTION"), "The steampipe postgresql connection string to use")
+	cmd.Flags().StringVarP(&spTable, "steampipe-table", "t", os.Getenv("STEAMPIPE_TABLE"), "The steampipe postgresql table to select from")
+
+	cmd.MarkFlagRequired("resource-provider")
+	cmd.MarkFlagRequired("steampipe-connection")
+	cmd.MarkFlagRequired("steampipe-table")
 
 	return cmd
 }
@@ -53,7 +109,7 @@ func NewSyncSteampipeListCmd() *cobra.Command {
 			}
 			defer client.Close()
 
-			connections, err := client.ListConnections()
+			connections, err := client.Fetch()
 			if err != nil {
 				return err
 			}

@@ -1,6 +1,6 @@
-package registry
+package adapter
 
-var kubernetesComponents = []SteampipeAccessInfo{
+var kubernetesComponents = []SteampipeAdapter{
 	{
 		ConnectionType: "kubernetes",
 		ResourceType:   "namespace",

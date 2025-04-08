@@ -1,16 +1,16 @@
-package registry
+package adapter
 
-func buildRegistry() []SteampipeAccessInfo {
-	components := []SteampipeAccessInfo{}
+func buildRegistry() []SteampipeAdapter {
+	components := []SteampipeAdapter{}
 	components = append(components, kubernetesComponents...)
-	components = append(components, awsComponents...)
+	components = append(components, awsAdapters...)
 	components = append(components, gcpComponents...)
 	components = append(components, azureComponents...)
 	return components
 }
 
-func buildTableNameRegistry() map[string]SteampipeAccessInfo {
-	tableNameRegistry := make(map[string]SteampipeAccessInfo)
+func buildTableNameRegistry() map[string]SteampipeAdapter {
+	tableNameRegistry := make(map[string]SteampipeAdapter)
 	for _, component := range buildRegistry() {
 		tableNameRegistry[component.TableName()] = component
 	}
@@ -19,7 +19,7 @@ func buildTableNameRegistry() map[string]SteampipeAccessInfo {
 
 var tableNameRegistry = buildTableNameRegistry()
 
-func GetAccessInfo(tableName string) (SteampipeAccessInfo, bool) {
+func GetAccessInfo(tableName string) (SteampipeAdapter, bool) {
 	accessInfo, ok := tableNameRegistry[tableName]
 	return accessInfo, ok
 }

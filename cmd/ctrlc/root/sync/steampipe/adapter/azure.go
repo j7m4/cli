@@ -1,6 +1,6 @@
-package registry
+package adapter
 
-var azureComponents = []SteampipeAccessInfo{
+var azureComponents = []SteampipeAdapter{
 	{
 		ConnectionType: "azure",
 		ResourceType:   "kubernetes_cluster",

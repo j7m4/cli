@@ -1,6 +1,6 @@
-package registry
+package adapter
 
-var gcpComponents = []SteampipeAccessInfo{
+var gcpComponents = []SteampipeAdapter{
 	{
 		ConnectionType: "gcp",
 		ResourceType:   "kubernetes_cluster",
