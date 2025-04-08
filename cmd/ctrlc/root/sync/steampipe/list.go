@@ -8,9 +8,20 @@ import (
 )
 
 type Connection struct {
-	Name         string
-	Type         string
-	ResourceType string
+	Name              string
+	Type              string
+	SteampipeResource SteampipeResource
+	CtrlPlaneResource CtrlPlaneResource
+}
+
+type CtrlPlaneResource struct {
+	Id   string
+	Type string
+}
+
+type SteampipeResource struct {
+	TableName      string
+	ConnectionName string
 }
 
 // ForeignTable represents a row from information_schema.foreign_tables
@@ -21,8 +32,23 @@ type ForeignTable struct {
 	ForeignServerName   string
 }
 
-func (c *SteampipeClient) ListResourceGroups() ([]Connection, error) {
-	resourceGroups := make([]Connection, 0)
+// SortedConnections implements sort.Interface for []Connection based on Name, Type, and CtrlPlaneResource.Type
+type SortedConnections []Connection
+
+func (c SortedConnections) Len() int      { return len(c) }
+func (c SortedConnections) Swap(i, j int) { c[i], c[j] = c[j], c[i] }
+func (c SortedConnections) Less(i, j int) bool {
+	if c[i].Name == c[j].Name {
+		if c[i].Type == c[j].Type {
+			return c[i].CtrlPlaneResource.Type < c[j].CtrlPlaneResource.Type
+		}
+		return c[i].Type < c[j].Type
+	}
+	return c[i].Name < c[j].Name
+}
+
+func (c *SteampipeClient) ListConnections() ([]Connection, error) {
+	connections := make([]Connection, 0)
 
 	foreignTables, err := c.GetSteampipeForeignTables()
 	if err != nil {
@@ -30,37 +56,43 @@ func (c *SteampipeClient) ListResourceGroups() ([]Connection, error) {
 	}
 
 	for _, foreignTable := range foreignTables {
+
+		spResource := SteampipeResource{
+			TableName:      foreignTable.ForeignTableName,
+			ConnectionName: foreignTable.ForeignTableSchema,
+		}
+
 		component, ok := registry.GetAccessInfo(foreignTable.ForeignTableName)
 		if !ok {
 			continue
 		}
-		connectionName := foreignTable.ForeignTableSchema
-		if component.ConnectionType == connectionName {
-			connectionName = "*"
+
+		cpResource := CtrlPlaneResource{
+			Id:   "",
+			Type: component.ResourceType,
 		}
-		resourceGroups = append(resourceGroups, Connection{
-			Name:         connectionName,
-			Type:         component.ConnectionType,
-			ResourceType: component.ResourceType,
-		})
+
+		// Connection name defaults to the schema name, but for the case
+		// where the schema name is the same as the .... TODO: fix this descr
+		name := foreignTable.ForeignTableSchema
+		if component.ConnectionType == name {
+			name = "*"
+		}
+
+		conn := Connection{
+			Name:              name,
+			Type:              component.ConnectionType,
+			SteampipeResource: spResource,
+			CtrlPlaneResource: cpResource,
+		}
+
+		connections = append(connections, conn)
 	}
 
-	fmt.Printf("%-30s %-20s %-30s\n", "connection-name", "connection-type", "resource-type")
-	fmt.Printf("%-30s %-20s %-30s\n", "------------------------------", "--------------------", "--------------------------------")
-	sort.Slice(resourceGroups, func(i, j int) bool {
-		if resourceGroups[i].Name == resourceGroups[j].Name {
-			if resourceGroups[i].Type == resourceGroups[j].Type {
-				return resourceGroups[i].ResourceType < resourceGroups[j].ResourceType
-			}
-			return resourceGroups[i].Type < resourceGroups[j].Type
-		}
-		return resourceGroups[i].Name < resourceGroups[j].Name
-	})
-	for _, rg := range resourceGroups {
-		fmt.Printf("%-30s %-20s %-30s\n", rg.Name, rg.Type, rg.ResourceType)
-	}
+	// Replace the sort.Slice with sort.Sort using our custom sort.Interface
+	sort.Sort(SortedConnections(connections))
 
-	return resourceGroups, nil
+	return connections, nil
 }
 
 // GetSteampipeForeignTables returns all foreign tables where foreign_table_catalog is 'steampipe'

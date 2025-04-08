@@ -6,10 +6,22 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/charmbracelet/log"
+	"github.com/ctrlplanedev/cli/internal/api"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewSyncSteampipeCmd() *cobra.Command {
+	apiURL := viper.GetString("url")
+	apiKey := viper.GetString("api-key")
+	workspaceId := viper.GetString("workspace")
+
+	ctrlplaneClient, err := api.NewAPIKeyClientWithResponses(apiURL, apiKey)
+	if err != nil {
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
+
 	cmd := &cobra.Command{
 		Use:   "steampipe <subcommand>",
 		Short: "Subcommands for integrating steampipe with Ctrlplane",
@@ -41,21 +53,45 @@ func NewSyncSteampipeListCmd() *cobra.Command {
 			}
 			defer client.Close()
 
-			_, err = client.ListResourceGroups()
+			connections, err := client.ListConnections()
 			if err != nil {
 				return err
 			}
 
-			// for _, group := range resourceGroups {
-			// 	fmt.Println(group)
-			// }
+			// Create a new table writer
+			table := tablewriter.NewWriter(os.Stdout)
+
+			// Set headers
+			table.SetHeader([]string{"Resource ID", "Resource Type", "Connection Name", "Steampipe Table"})
+
+			// Add rows
+			for _, conn := range connections {
+				table.Append([]string{
+					conn.CtrlPlaneResource.Id,
+					conn.CtrlPlaneResource.Type,
+					conn.Name,
+					conn.SteampipeResource.TableName,
+				})
+			}
+
+			// Set table properties
+			table.SetAutoWrapText(false)
+			table.SetAutoFormatHeaders(true)
+			table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.SetCenterSeparator("")
+			table.SetColumnSeparator("|")
+			table.SetRowSeparator("")
+			table.SetBorder(true)
+			table.SetTablePadding("\t")
+			table.SetNoWhiteSpace(true)
+
+			// Render the table
+			table.Render()
 
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVarP(&spConnection, "steampipe-connection", "c", "", "The steampipe postgresql connection string to use")
-	cmd.MarkFlagRequired("steampipe-connection")
 
 	return cmd
 }
