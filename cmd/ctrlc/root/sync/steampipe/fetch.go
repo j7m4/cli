@@ -31,7 +31,7 @@ func (c *SteampipeClient) Fetch(table string) ([]api.AgentResource, error) {
 
 	for _, result := range results {
 
-		fmt.Println(result)
+		//fmt.Println(result)
 
 		if resource, ok = ad.Translate(result); ok {
 			resources = append(resources, resource)

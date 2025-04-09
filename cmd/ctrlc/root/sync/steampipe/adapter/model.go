@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/ctrlplanedev/cli/internal/api"
+	"strings"
 )
 
 type SteampipeAdapter struct {
 	Table     string
 	Translate func(data *map[string]interface{}) (api.AgentResource, bool)
+}
+
+func getPathValue[T any](data *map[string]interface{}, path string) (T, bool) {
+	keys := strings.Split(path, ".")
+	return getValue[T](data, keys)
 }
 
 func getValue[T any](data interface{}, keys []string) (T, bool) {
