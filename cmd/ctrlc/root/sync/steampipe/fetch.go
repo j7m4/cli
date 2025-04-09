@@ -25,6 +25,8 @@ func (c *SteampipeClient) Fetch(table string) ([]api.AgentResource, error) {
 		return nil, fmt.Errorf("failed to fetch from %s table: %w", table, err)
 	}
 
+	log.Infof("steampipe '%s' query returned %d rows", table, len(results))
+
 	if len(results) == 0 {
 		return nil, nil
 	}

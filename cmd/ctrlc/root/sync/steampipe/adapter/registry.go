@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"github.com/charmbracelet/log"
 	"strings"
 )
 
@@ -22,6 +23,7 @@ func SelectAdapter(table string) *SteampipeAdapter {
 	tableName := stripSchema(table)
 
 	if adapter, ok = registry[tableName]; !ok {
+		log.Warnf("could not find adapter for table %s", tableName)
 		return nil
 	}
 	return adapter

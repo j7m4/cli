@@ -1,6 +1,10 @@
 package adapter
 
-import "github.com/ctrlplanedev/cli/internal/api"
+import (
+	"encoding/json"
+	"github.com/charmbracelet/log"
+	"github.com/ctrlplanedev/cli/internal/api"
+)
 
 var awsAdapters = []SteampipeAdapter{
 	{
@@ -19,39 +23,73 @@ var awsAdapters = []SteampipeAdapter{
 			var platformVersion string
 
 			var zero api.AgentResource = api.AgentResource{}
-			var ok bool
+			var err error
+			var entityName = "aws_eks_cluster"
 
-			if clusterArn, ok = getPathValue[string](data, "arn"); !ok {
+			if clusterArn, err = getPathValue[string](data, "arn"); err != nil {
+				log.Infof("could not find %s in %s: %s", "arn", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if name, ok = getPathValue[string](data, "name"); !ok {
+			if name, err = getPathValue[string](data, "name"); err != nil {
+				log.Infof("could not find %s in %s: %s", "name", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if tags, ok = getPathValue[map[string]string](data, "tags"); !ok {
+			if tags, err = getPathValue[map[string]string](data, "tags"); err != nil {
+				log.Infof("could not find %s in %s: %s", "tags", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if accountId, ok = getPathValue[string](data, "account_id"); !ok {
+			if accountId, err = getPathValue[string](data, "account_id"); err != nil {
+				log.Infof("could not find %s in %s: %s", "account_id", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if region, ok = getPathValue[string](data, "region"); !ok {
+			if region, err = getPathValue[string](data, "region"); err != nil {
+				log.Infof("could not find %s in %s: %s", "region", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if certificateAuthorityData, ok = getPathValue[string](data, "certificate_authority.Data"); !ok {
+			if certificateAuthorityData, err = getPathValue[string](data, "certificate_authority.Data"); err != nil {
+				log.Infof("could not find %s in %s: %s", "certificate_authority.Data", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if status, ok = getPathValue[string](data, "status"); !ok {
+			if status, err = getPathValue[string](data, "status"); err != nil {
+				log.Infof("could not find %s in %s: %s", "status", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if version, ok = getPathValue[string](data, "version"); !ok {
+			if version, err = getPathValue[string](data, "version"); err != nil {
+				log.Infof("could not find %s in %s: %s", "version", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if endpoint, ok = getPathValue[string](data, "endpoint"); !ok {
+			if endpoint, err = getPathValue[string](data, "endpoint"); err != nil {
+				log.Infof("could not find %s in %s: %s", "endpoint", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if roleArn, ok = getPathValue[string](data, "role_arn"); !ok {
+			if roleArn, err = getPathValue[string](data, "role_arn"); err != nil {
+				log.Infof("could not find %s in %s: %s", "role_arn", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
-			if platformVersion, ok = getPathValue[string](data, "platform_version"); !ok {
+			if platformVersion, err = getPathValue[string](data, "platform_version"); err != nil {
+				log.Infof("could not find %s in %s: %s", "platform_version", entityName, err.Error())
+				dataStr, _ := json.Marshal(data)
+				log.Debugf("data: %s", dataStr)
 				return zero, false
 			}
 

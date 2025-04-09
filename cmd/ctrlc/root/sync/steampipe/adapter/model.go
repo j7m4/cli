@@ -2,7 +2,6 @@ package adapter
 
 import (
 	"fmt"
-	"github.com/charmbracelet/log"
 	"github.com/ctrlplanedev/cli/internal/api"
 	"strings"
 )
@@ -12,47 +11,33 @@ type SteampipeAdapter struct {
 	Translate func(data *map[string]interface{}) (api.AgentResource, bool)
 }
 
-func getPathValue[T any](data *map[string]interface{}, path string) (T, bool) {
+func getPathValue[T any](data *map[string]interface{}, path string) (T, error) {
 	keys := strings.Split(path, ".")
-	return getValue[T](data, keys)
-}
-
-func getValue[T any](data interface{}, keys []string) (T, bool) {
 	var zero T // Default zero value for the type T
-	var exists bool
-	var value interface{}
+	var value interface{} = data
+	var ok bool
 
-	if len(keys) == 0 {
-		if value, ok := data.(T); ok {
-			return value, true
-		}
-		return zero, false
-	}
-
-	currentKey := keys[0]
-	switch casted := data.(type) {
-	case map[string]interface{}:
-		value, exists = casted[currentKey]
-	case []interface{}:
-		if index, ok := parseIndex(currentKey); ok && index >= 0 && index < len(casted) {
-			value = casted[index]
-		} else {
-			log.Warn("could not find index in array")
-			return zero, false
+	for _, key := range keys {
+		switch casted := value.(type) {
+		case map[string]interface{}:
+			if value, ok = casted[key]; !ok {
+				return zero, fmt.Errorf("missing value for %s in path %s", key, path)
+			}
+		case []interface{}:
+			if index, ok := parseIndex(key); ok && index >= 0 && index < len(casted) {
+				value = casted[index]
+			} else {
+				return zero, fmt.Errorf("invalid index %s in path %s", key, path)
+			}
+		default:
+			return zero, fmt.Errorf("type mismatch for %s in path %s, expected %T, got %T", key, path, zero, value)
 		}
 	}
-	if !exists {
-		return zero, false
-	}
 
-	if len(keys) == 1 {
-		if typedValue, ok := value.(T); ok {
-			return typedValue, true
-		}
-		return zero, false
+	if finalValue, ok := value.(T); ok {
+		return finalValue, nil
 	}
-
-	return getValue[T](value, keys[1:])
+	return zero, fmt.Errorf("type mismatch for at %s, expected %T, got %T", path, zero, value)
 }
 
 func parseIndex(key string) (int, bool) {
