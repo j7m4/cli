@@ -2,31 +2,44 @@ package adapter
 
 import (
 	"github.com/charmbracelet/log"
+	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/aws"
+	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/azure"
+	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/gcp"
+	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/model"
 	"strings"
 )
 
-func buildRegistry() map[string]*SteampipeAdapter {
-	registry := make(map[string]*SteampipeAdapter)
-	for _, pluginAdapters := range [][]SteampipeAdapter{kubernetesComponents, awsAdapters, gcpComponents, azureComponents} {
-		for _, adapter := range pluginAdapters {
-			registry[adapter.Table] = &adapter
-		}
+var adapters = []model.SteampipeAdapter{
+	aws.EC2,
+	aws.EKS,
+	aws.RDS,
+	aws.VPC,
+	gcp.GKE,
+	gcp.SQL,
+	gcp.Compute,
+	azure.AKS,
+}
+
+func buildRegistry() map[string]model.SteampipeAdapter {
+	registry := make(map[string]model.SteampipeAdapter)
+	for _, adapter := range adapters {
+		registry[adapter.EntityName()] = adapter
 	}
 	return registry
 }
 
 var registry = buildRegistry()
 
-func SelectAdapter(table string) *SteampipeAdapter {
-	var adapter *SteampipeAdapter
+func SelectAdapter(table string) model.SteampipeAdapter {
+	var result model.SteampipeAdapter
 	var ok bool
 	tableName := stripSchema(table)
 
-	if adapter, ok = registry[tableName]; !ok {
+	if result, ok = registry[tableName]; !ok {
 		log.Warnf("could not find adapter for table %s", tableName)
 		return nil
 	}
-	return adapter
+	return result
 }
 
 func stripSchema(table string) string {

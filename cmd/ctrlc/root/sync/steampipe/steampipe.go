@@ -18,10 +18,6 @@ func NewSyncSteampipeCmd() *cobra.Command {
 	var connection string
 	var table string
 
-	apiURL := viper.GetString("url")
-	apiKey := viper.GetString("api-key")
-	workspaceId := viper.GetString("workspace")
-
 	cmd := &cobra.Command{
 		Use:   "steampipe",
 		Short: "Subcommands for integrating steampipe with Ctrlplane",
@@ -33,6 +29,10 @@ func NewSyncSteampipeCmd() *cobra.Command {
 			var provider *api.ResourceProvider
 			var providerResp *http.Response
 			var resources []api.AgentResource
+
+			apiURL := viper.GetString("url")
+			apiKey := viper.GetString("api-key")
+			workspaceId := viper.GetString("workspace")
 
 			ctx := context.Background()
 
@@ -52,7 +52,7 @@ func NewSyncSteampipeCmd() *cobra.Command {
 				return fmt.Errorf("failed to create API client: %w", err)
 			}
 
-			if resources, err = steampipe.Fetch(table); err != nil {
+			if resources, err = steampipe.DoSync(table); err != nil {
 				return err
 			}
 
