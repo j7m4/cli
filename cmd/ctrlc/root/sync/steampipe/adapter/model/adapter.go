@@ -1,23 +1,19 @@
 package model
 
-import (
-	"github.com/ctrlplanedev/cli/internal/api"
-)
-
 type SteampipeAdapterStruct struct {
-	Table     string
-	Translate func(data map[string]interface{}) (api.AgentResource, bool)
+	Table   string
+	Convert func(jsonRow string) (string, bool)
 }
 
 func (a *SteampipeAdapterStruct) EntityName() string {
 	return a.Table
 }
 
-func (a *SteampipeAdapterStruct) ToApiResource(row SqlRow) (api.AgentResource, bool) {
-	return a.Translate(row.Data)
+func (a *SteampipeAdapterStruct) ToResourceJson(sqlRow SqlRow) (string, bool) {
+	return a.Convert(sqlRow.Json)
 }
 
 type SteampipeAdapter interface {
 	EntityName() string
-	ToApiResource(row SqlRow) (api.AgentResource, bool)
+	ToResourceJson(sqlRow SqlRow) (string, bool)
 }

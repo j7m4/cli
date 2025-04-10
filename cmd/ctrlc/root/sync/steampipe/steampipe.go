@@ -40,7 +40,7 @@ func NewSyncSteampipeCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to create steampipe connection: %w", err)
 			}
-			defer func(steampipe *SteampipeClient) {
+			defer func(steampipe *Client) {
 				err := steampipe.Close()
 				if err != nil {
 					log.Errorf("failed to close steampipe connection: %v", err)

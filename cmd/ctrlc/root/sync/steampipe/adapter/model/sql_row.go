@@ -4,73 +4,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/charmbracelet/log"
+	"github.com/xeipuuv/gojsonschema"
 	"strings"
 )
 
 type SqlRow struct {
 	EntityName string
-	Data       map[string]interface{}
+	Json       string
 }
 
-func GetRequiredValue[T any](row SqlRow, path string, valuePtr *T) bool {
-	return GetRowValue[T](row, path, valuePtr, true)
-}
+// ValidateAndUnmarshal ValidateAndMarshal is a convenience function to validate and unmarshal JSON to T.
+// It assumes the schemaLoader and T are compatible.
+func ValidateAndUnmarshal[T any](schemaLoader gojsonschema.JSONLoader, jsonStr string) (T, bool) {
+	var zero T
+	rowJsonLoader := gojsonschema.NewStringLoader(jsonStr)
 
-func GetOptionalValue[T any](row SqlRow, path string, valuePtr *T) bool {
-	return GetRowValue[T](row, path, valuePtr, false)
-}
+	// Perform validation
+	result, err := gojsonschema.Validate(schemaLoader, rowJsonLoader)
+	if err != nil {
+		fmt.Printf("Error validating JSON: %s\n", err)
+		return zero, false
+	}
 
-func GetRowValue[T any](row SqlRow, path string, valuePtr *T, required bool) bool {
-	var err error
-	var result T
-	if result, err = getPathValue[T](row.Data, path); err != nil {
-		if required {
-			log.Infof("%s -> %s: %s", row.EntityName, path, err.Error())
-			if log.GetLevel() >= log.DebugLevel {
-				dataStr, _ := json.Marshal(row.Data)
-				log.Debugf("data: %s", dataStr)
-			}
-			return false
+	// Check validation result
+	if !result.Valid() {
+		var errors []string
+		for _, desc := range result.Errors() {
+			errors = append(errors, desc.String())
 		}
-	}
-	*valuePtr = result
-	return true
-
-}
-
-const PathSeparator = "."
-
-func getPathValue[T any](data map[string]interface{}, path string) (T, error) {
-	keys := strings.Split(path, PathSeparator)
-	var zero T // Default zero value for the type T
-	var value interface{} = data
-	var ok bool
-
-	for _, key := range keys {
-		switch casted := value.(type) {
-		case map[string]interface{}:
-			if value, ok = casted[key]; !ok {
-				return zero, fmt.Errorf("missing value for %s in path %s", key, path)
-			}
-		case []interface{}:
-			if index, ok := parseIndex(key); ok && index >= 0 && index < len(casted) {
-				value = casted[index]
-			} else {
-				return zero, fmt.Errorf("invalid index %s in path %s", key, path)
-			}
-		default:
-			return zero, fmt.Errorf("type mismatch for %s in path %s, expected %T, got %T", key, path, zero, value)
-		}
+		log.Errorf("Invalid JSON:\n%s", strings.Join(errors, "\n"))
+		return zero, false
 	}
 
-	if finalValue, ok := value.(T); ok {
-		return finalValue, nil
+	var row T
+	if err := json.Unmarshal([]byte(jsonStr), &row); err != nil {
+		log.Errorf("Failed to unmarshal JSON: %s", err)
+		return zero, false
 	}
-	return zero, fmt.Errorf("type mismatch for at %s, expected %T, got %T", path, zero, value)
-}
 
-func parseIndex(key string) (int, bool) {
-	var index int
-	_, err := fmt.Sscanf(key, "[%d]", &index)
-	return index, err == nil
+	return row, true
 }

@@ -1,66 +1,108 @@
 package aws
 
 import (
+	_ "embed"
+	"encoding/json"
+	"github.com/charmbracelet/log"
 	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/model"
-	"github.com/ctrlplanedev/cli/internal/api"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 const ec2Table = "aws_ec2_instance"
 
+//go:embed schema/ec2_row.schema.json
+var ec2RowSchema string
+
+var rowSchemaLoader = gojsonschema.NewStringLoader(ec2RowSchema)
+
+type Ec2Row struct {
+	Arn            string            `json:"arn"`
+	InstanceID     string            `json:"instance_id"`
+	AccountID      string            `json:"account_id"`
+	Region         string            `json:"region"`
+	InstanceState  string            `json:"instance_state"`
+	PrivateDNSName string            `json:"private_dns_name" default:""`
+	Tags           map[string]string `json:"tags"`
+}
+
+type Ec2Resource struct {
+	Config     Ec2ResConfig      `json:"config"`
+	Identifier string            `json:"identifier"`
+	Kind       string            `json:"kind"`
+	Metadata   map[string]string `json:"metadata"`
+	Name       string            `json:"name"`
+	Version    string            `json:"version"`
+}
+
+type Ec2ResConfig struct {
+	Auth   Ec2ResConfigAuth   `json:"auth"`
+	Name   string             `json:"name"`
+	Server Ec2ResConfigServer `json:"server"`
+	Status string             `json:"status"`
+}
+
+type Ec2ResConfigAuth struct {
+	Method     string `json:"method"`
+	Region     string `json:"region"`
+	AccountId  string `json:"accountId"`
+	InstanceId string `json:"instanceId"`
+}
+
+type Ec2ResConfigServer struct {
+	Endpoint string `json:"endpoint"`
+}
+
+type Ec2ResRequiredMetadata struct {
+	AccountID string `json:"aws/account-id"`
+	Arn       string `json:"aws/arn"`
+	Region    string `json:"aws/region"`
+}
+
 var EC2 model.SteampipeAdapter = &model.SteampipeAdapterStruct{
 	Table: ec2Table,
-	Translate: func(data map[string]interface{}) (api.AgentResource, bool) {
-		var entityName = ec2Table
-		var sqlRow model.SqlRow = model.SqlRow{
-			EntityName: entityName,
-			Data:       data,
+	Convert: func(rowJsonStr string) (string, bool) {
+		// Validate row json schema and build into type
+		row, ok := model.ValidateAndUnmarshal[Ec2Row](rowSchemaLoader, rowJsonStr)
+		if !ok {
+			return "", false
 		}
 
-		var name string
-		var clusterArn string
-		var tags model.Tags
-		var accountId string
-		var region string
-		var status string
-		var endpoint string
+		// Add required metadata and merge with tags
+		metadata := make(model.Metadata)
+		metadata["aws/account-id"] = row.AccountID
+		metadata["aws/arn"] = row.Arn
+		metadata["aws/region"] = row.Region
+		metadata = metadata.AppendTags(row.Tags)
 
-		var zero api.AgentResource = api.AgentResource{}
-
-		if !model.GetRequiredValue[string](sqlRow, "arn", &clusterArn) ||
-			!model.GetRequiredValue[string](sqlRow, "instance_id", &name) ||
-			!model.GetOptionalValue[model.Tags](sqlRow, "tags", &tags) ||
-			!model.GetRequiredValue[string](sqlRow, "account_id", &accountId) ||
-			!model.GetRequiredValue[string](sqlRow, "region", &region) ||
-			!model.GetRequiredValue[string](sqlRow, "instance_state", &status) ||
-			!model.GetRequiredValue[string](sqlRow, "private_dns_name", &endpoint) {
-			return zero, false
-		}
-
-		metadata := model.BuildMetadata(map[string]string{
-			"aws/account-id": accountId,
-			"aws/arn":        clusterArn,
-			"aws/region":     region,
-		}).AppendTags(tags)
-
-		return api.AgentResource{
-			Identifier: clusterArn,
-			Name:       name,
+		// Build resource specific to the resource type
+		result := Ec2Resource{
+			Identifier: row.Arn,
+			Name:       row.InstanceID,
 			Version:    "compute/v1",
 			Kind:       "Compute",
-			Config: map[string]interface{}{
-				"auth": map[string]string{
-					"method":     "aws/ec2",
-					"region":     region,
-					"accountId":  accountId,
-					"instanceId": name,
+			Config: Ec2ResConfig{
+				Auth: Ec2ResConfigAuth{
+					Method:     "aws/ec2",
+					Region:     row.Region,
+					AccountId:  row.AccountID,
+					InstanceId: row.InstanceID,
 				},
-				"name": name,
-				"server": map[string]string{
-					"endpoint": endpoint,
+				Name: row.InstanceID,
+				Server: Ec2ResConfigServer{
+					Endpoint: row.PrivateDNSName,
 				},
-				"status": status,
+				Status: row.InstanceState,
 			},
 			Metadata: metadata,
-		}, true
+		}
+
+		var resultJson []byte
+		var err error
+		if resultJson, err = json.Marshal(result); err != nil {
+			log.Errorf("failed to marshal EC2 resource: %v")
+			return "", false
+		}
+
+		return string(resultJson), true
 	},
 }

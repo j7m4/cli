@@ -3,21 +3,19 @@ package adapter
 import (
 	"github.com/charmbracelet/log"
 	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/aws"
-	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/azure"
-	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/gcp"
 	"github.com/ctrlplanedev/cli/cmd/ctrlc/root/sync/steampipe/adapter/model"
 	"strings"
 )
 
 var adapters = []model.SteampipeAdapter{
 	aws.EC2,
-	aws.EKS,
-	aws.RDS,
-	aws.VPC,
-	gcp.GKE,
-	gcp.SQL,
-	gcp.Compute,
-	azure.AKS,
+	//aws.EKS,
+	//aws.RDS,
+	//aws.VPC,
+	//gcp.GKE,
+	//gcp.SQL,
+	//gcp.Compute,
+	//azure.AKS,
 }
 
 func buildRegistry() map[string]model.SteampipeAdapter {

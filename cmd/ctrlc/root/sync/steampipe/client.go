@@ -7,13 +7,13 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type SteampipeClient struct {
+type Client struct {
 	Connection string `default:"connection"`
 	db         *sql.DB
 }
 
-func NewSteampipeClient(spConnection string) (*SteampipeClient, error) {
-	client := &SteampipeClient{
+func NewSteampipeClient(spConnection string) (*Client, error) {
+	client := &Client{
 		Connection: spConnection,
 	}
 
@@ -34,7 +34,7 @@ func NewSteampipeClient(spConnection string) (*SteampipeClient, error) {
 }
 
 // Close closes the database connection
-func (c *SteampipeClient) Close() error {
+func (c *Client) Close() error {
 	if c.db != nil {
 		return c.db.Close()
 	}
@@ -42,6 +42,6 @@ func (c *SteampipeClient) Close() error {
 }
 
 // GetDB returns the underlying database connection
-func (c *SteampipeClient) GetDB() *sql.DB {
+func (c *Client) GetDB() *sql.DB {
 	return c.db
 }

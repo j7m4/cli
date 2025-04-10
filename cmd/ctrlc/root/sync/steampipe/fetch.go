@@ -10,8 +10,8 @@ import (
 	"github.com/ctrlplanedev/cli/internal/api"
 )
 
-func (c *SteampipeClient) DoSync(table string) ([]api.AgentResource, error) {
-	var resource api.AgentResource
+func (c *Client) DoSync(table string) ([]api.AgentResource, error) {
+	var jsResource string
 	var ok bool
 
 	ad := adapter.SelectAdapter(table)
@@ -21,32 +21,39 @@ func (c *SteampipeClient) DoSync(table string) ([]api.AgentResource, error) {
 
 	resources := make([]api.AgentResource, 0)
 
-	jsonObjRows, err := c.SelectAll(table)
+	jsonRows, err := c.SelectAll(table)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch from %s table: %w", table, err)
 	}
 
-	log.Infof("steampipe '%s' query returned %d rows", table, len(jsonObjRows))
+	log.Infof("steampipe '%s' query returned %d rows", table, len(jsonRows))
 
-	if len(jsonObjRows) == 0 {
+	if len(jsonRows) == 0 {
 		return nil, nil
 	}
 
 	var sqlRow model.SqlRow = model.SqlRow{
 		EntityName: table,
-		Data:       nil,
+		Json:       "",
 	}
 
-	for _, jsonObj := range jsonObjRows {
+	for _, jsRow := range jsonRows {
 
-		sqlRow.Data = jsonObj
+		sqlRow.Json = jsRow
 
-		if resource, ok = ad.ToApiResource(sqlRow); ok {
+		log.Debugf("SqlRow '%s' JSON \n%s", table, jsRow)
+
+		if jsResource, ok = ad.ToResourceJson(sqlRow); ok {
 			if log.GetLevel() >= log.DebugLevel {
-				payloadStr, _ := json.Marshal(resource)
-				log.Debugf("%s", payloadStr)
+				payloadStr, _ := json.Marshal(jsResource)
+				log.Debugf("Resource JSON \n%s", payloadStr)
 			}
-			resources = append(resources, resource)
+			var apiResource api.AgentResource
+			if err = json.Unmarshal([]byte(jsResource), &apiResource); err != nil {
+				log.Errorf("Failed to unmarshal json resource '%s': %s", jsResource, err)
+			} else {
+				resources = append(resources, apiResource)
+			}
 		}
 	}
 
@@ -54,11 +61,11 @@ func (c *SteampipeClient) DoSync(table string) ([]api.AgentResource, error) {
 }
 
 // SelectAll returns all foreign tables where foreign_table_catalog is 'steampipe'
-func (c *SteampipeClient) SelectAll(tableName string) ([]map[string]interface{}, error) {
+func (c *Client) SelectAll(tableName string) ([]string, error) {
 	var columns []string
 	var err error
 
-	results := make([]map[string]interface{}, 0)
+	results := make([]string, 0)
 
 	query := fmt.Sprintf("SELECT * FROM %s", tableName)
 
@@ -79,11 +86,15 @@ func (c *SteampipeClient) SelectAll(tableName string) ([]map[string]interface{},
 	}
 
 	var row map[string]interface{}
+	var rowJson []byte
 	for rows.Next() {
 		if row, err = toJsonObj(rows, columns); err != nil {
 			return nil, fmt.Errorf("failed to convert row to JSON object: %w", err)
 		}
-		results = append(results, row)
+		if rowJson, err = json.Marshal(row); err != nil {
+			return nil, fmt.Errorf("failed row to JSON: %w", err)
+		}
+		results = append(results, string(rowJson))
 	}
 
 	if err := rows.Err(); err != nil {
