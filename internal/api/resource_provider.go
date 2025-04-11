@@ -63,12 +63,13 @@ type ResourceProvider struct {
 }
 
 type AgentResource struct {
-	Config     map[string]interface{} `json:"config"`
-	Identifier string                 `json:"identifier"`
-	Kind       string                 `json:"kind"`
-	Metadata   map[string]string      `json:"metadata"`
-	Name       string                 `json:"name"`
-	Version    string                 `json:"version"`
+	WorkspaceId string                 `json:"workspaceId"`
+	Config      map[string]interface{} `json:"config"`
+	Identifier  string                 `json:"identifier"`
+	Kind        string                 `json:"kind"`
+	Metadata    map[string]string      `json:"metadata"`
+	Name        string                 `json:"name"`
+	Version     string                 `json:"version"`
 }
 
 func (r *ResourceProvider) UpsertResource(ctx context.Context, resources []AgentResource) (*http.Response, error) {

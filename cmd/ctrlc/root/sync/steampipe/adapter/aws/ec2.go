@@ -26,12 +26,13 @@ type Ec2Row struct {
 }
 
 type Ec2Resource struct {
-	Config     Ec2ResConfig      `json:"config"`
-	Identifier string            `json:"identifier"`
-	Kind       string            `json:"kind"`
-	Metadata   map[string]string `json:"metadata"`
-	Name       string            `json:"name"`
-	Version    string            `json:"version"`
+	WorkspaceId string            `json:"workspaceId"`
+	Config      Ec2ResConfig      `json:"config"`
+	Identifier  string            `json:"identifier"`
+	Kind        string            `json:"kind"`
+	Metadata    map[string]string `json:"metadata"`
+	Name        string            `json:"name"`
+	Version     string            `json:"version"`
 }
 
 type Ec2ResConfig struct {
@@ -60,7 +61,7 @@ type Ec2ResRequiredMetadata struct {
 
 var EC2 model.SteampipeAdapter = &model.SteampipeAdapterStruct{
 	Table: ec2Table,
-	Convert: func(rowJsonStr string) (string, bool) {
+	Convert: func(workspaceId string, rowJsonStr string) (string, bool) {
 		// Validate row json schema and build into type
 		row, ok := model.ValidateAndUnmarshal[Ec2Row](rowSchemaLoader, rowJsonStr)
 		if !ok {
@@ -76,10 +77,11 @@ var EC2 model.SteampipeAdapter = &model.SteampipeAdapterStruct{
 
 		// Build resource specific to the resource type
 		result := Ec2Resource{
-			Identifier: row.Arn,
-			Name:       row.InstanceID,
-			Version:    "compute/v1",
-			Kind:       "Compute",
+			WorkspaceId: workspaceId,
+			Identifier:  row.Arn,
+			Name:        row.InstanceID,
+			Version:     "vm/v1",
+			Kind:        "VM",
 			Config: Ec2ResConfig{
 				Auth: Ec2ResConfigAuth{
 					Method:     "aws/ec2",
@@ -99,7 +101,7 @@ var EC2 model.SteampipeAdapter = &model.SteampipeAdapterStruct{
 		var resultJson []byte
 		var err error
 		if resultJson, err = json.Marshal(result); err != nil {
-			log.Errorf("failed to marshal EC2 resource: %v")
+			log.Errorf("failed to marshal EC2 resource: %v", err)
 			return "", false
 		}
 

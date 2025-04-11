@@ -10,7 +10,7 @@ import (
 	"github.com/ctrlplanedev/cli/internal/api"
 )
 
-func (c *Client) DoSync(table string) ([]api.AgentResource, error) {
+func (c *Client) DoSync(workspaceId string, table string) ([]api.AgentResource, error) {
 	var jsResource string
 	var ok bool
 
@@ -43,7 +43,7 @@ func (c *Client) DoSync(table string) ([]api.AgentResource, error) {
 
 		log.Debugf("SqlRow '%s' JSON \n%s", table, jsRow)
 
-		if jsResource, ok = ad.ToResourceJson(sqlRow); ok {
+		if jsResource, ok = ad.ToResourceJson(workspaceId, sqlRow); ok {
 			if log.GetLevel() >= log.DebugLevel {
 				payloadStr, _ := json.Marshal(jsResource)
 				log.Debugf("Resource JSON \n%s", payloadStr)

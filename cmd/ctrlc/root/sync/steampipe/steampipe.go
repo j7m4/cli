@@ -3,6 +3,7 @@ package steampipe
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -52,7 +53,7 @@ func NewSyncSteampipeCmd() *cobra.Command {
 				return fmt.Errorf("failed to create API client: %w", err)
 			}
 
-			if resources, err = steampipe.DoSync(table); err != nil {
+			if resources, err = steampipe.DoSync(workspaceId, table); err != nil {
 				return err
 			}
 
@@ -65,6 +66,12 @@ func NewSyncSteampipeCmd() *cobra.Command {
 				providerResp, err = provider.UpsertResource(ctx, resources)
 				if providerResp != nil {
 					log.Info("upsert resources response ", "status", providerResp.Status)
+					bodyContent, err := io.ReadAll(providerResp.Body)
+					if err != nil {
+						log.Errorf("failed to read response body: %v", err)
+					}
+					log.Info("upsert resources response ", "body", string(bodyContent))
+					providerResp.Body.Close()
 				}
 				if err != nil {
 					return fmt.Errorf("failed to upsert resources: %w", err)
